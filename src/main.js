@@ -1,8 +1,5 @@
 const redmine = require('./redmine');
-const input = require('readline').createInterface({
-  input: process.stdin,
-  output: process.stdout
-});
+
 
 const {user_id, project_id} = require('../config.json');
 const impediments = 'Sem impedimentos';
@@ -23,6 +20,10 @@ const yargs = require('yargs')
     alias: 'q',
     describe: 'Não exibe nenhuma mensagem',
     default: false
+  })
+  .option('append', {
+    alias: 'a',
+    describe: 'Adiciona informações as de hoje'
   })
   .option('today', {
     alias: 't',
@@ -54,27 +55,16 @@ Promise.all([
     } else {
       today = todayIssues.map(issue => `#${issue.id} - ${issue.subject}`);
       if ( !today.length )
-      today = shuffleArray(desculpas).slice(0, 1);
+        today = shuffleArray(desculpas).slice(0, 1);
+      if ( yargs.append )
+        today.push(yargs.append);
     }
 
     var notes = `*Ontem*:\n${yesterday.join('\n')}\n\n*Hoje*:\n${today.join('\n')}\n\n*Impedimentos*:\n${impediments}`;
 
-    log(`\n${notes}\n`);
+    log(`${notes}`);
 
-    if ( yargs.yes )
-      return submit(reuniao, notes);
-    else
-      return new Promise((resolve, reject) => {
-        input.question('Deseja enviar (Y/n) ? ', function(response) {
-
-        if ( ['', 'Y', 'y', 'yes', 'Yes'].indexOf(response) >= 0 ) {
-          resolve(submit(reuniao, notes));
-        }
-
-        reject();
-        input.close();
-      });
-    });
+    return confirm().then(() => submit(reuniao, notes));
   })
   .then(response => {
     log('\n\nSalvo com sucesso!');
@@ -85,6 +75,26 @@ Promise.all([
 
 function log(...args) {
   !yargs.quiet && console.log.apply(console, args)
+}
+
+function confirm() {
+  return new Promise((resolve, reject) => {
+    if ( yargs.yes )
+      return resolve();
+
+    const input = require('readline').createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+
+    input.question('Deseja enviar (Y/n) ? ', function(response) {
+      if ( ['', 'Y', 'y', 'yes', 'Yes'].indexOf(response) >= 0 )
+        resolve();
+      else
+        reject();
+      input.close();
+    });
+  });
 }
 
 function getTodayTasks(qs = {}) {
