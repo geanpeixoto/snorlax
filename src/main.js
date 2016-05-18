@@ -1,13 +1,35 @@
-var redmine = require('./redmine');
-var {user_id} = require('../config.json');
+const redmine = require('./redmine');
+const input = require('readline').createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
 
+const {user_id, project_id} = require('../config.json');
+const impediments = 'Sem impedimentos';
 const nova = 1;
 const em_andamento = 2;
 const reuniao_diaria = 'Reunião Diária';
 const TODAY = new Date().toISOString().substr(0, 10);
-const yesterday = new Date( Date.now() - 24*1000*60*60 ).toISOString().substr(0, 10);
+const YESTERDAY = new Date( Date.now() - 24*1000*60*60 ).toISOString().substr(0, 10);
 
-const project_id = 45; // Spring 18
+const yargs = require('yargs')
+  .usage('$0 [args]')
+  .option('yes', {
+    alias: 'y',
+    describe: 'Não pergunta se deseja confirmar',
+    default: false
+  })
+  .option('quiet', {
+    alias: 'q',
+    describe: 'Não exibe nenhuma mensagem',
+    default: false
+  })
+  .option('today', {
+    alias: 't',
+    describe: 'Informa o quer irá fazer no dia'
+  })
+  .help('h')
+  .argv;
 
 const desculpas = [
   'Esperando atribuição de tarefas',
@@ -22,27 +44,48 @@ Promise.all([
   getTodayTasks({'assigned_to_id': user_id})
 ])
   .then(([reuniao, yesterdayTimes, todayIssues]) => {
-    var yesterday = yesterdayTimes.map(time => `#${time.issue.id} - ${time.comments}`);
+    var today, yesterday = yesterdayTimes.map(time => `#${time.issue.id} - ${time.comments}`);
 
     if ( !yesterday.length )
       throw new Error('Não existem horarios cadastrados para ontem');
 
-    var today = todayIssues.map(issue => `#${issue.id} - ${issue.subject}`);
-
-    if ( !today.length )
+    if ( yargs.today ) {
+      today = [yargs.today];
+    } else {
+      today = todayIssues.map(issue => `#${issue.id} - ${issue.subject}`);
+      if ( !today.length )
       today = shuffleArray(desculpas).slice(0, 1);
+    }
 
-    return submit(reuniao, {
-      yesterday: yesterday.join('\n'),
-      today: today.join('\n')
+    var notes = `*Ontem*:\n${yesterday.join('\n')}\n\n*Hoje*:\n${today.join('\n')}\n\n*Impedimentos*:\n${impediments}`;
+
+    log(`\n${notes}\n`);
+
+    if ( yargs.yes )
+      return submit(reuniao, notes);
+    else
+      return new Promise((resolve, reject) => {
+        input.question('Deseja enviar (Y/n) ? ', function(response) {
+
+        if ( ['', 'Y', 'y', 'yes', 'Yes'].indexOf(response) >= 0 ) {
+          resolve(submit(reuniao, notes));
+        }
+
+        reject();
+        input.close();
+      });
     });
   })
-  .then(() => {
-    console.log('¯\\_(ツ)_/¯')
+  .then(response => {
+    log('\n\nSalvo com sucesso!');
   })
   .catch(error => {
-    console.error(error);
+    error && console.error(error);
   });
+
+function log(...args) {
+  !yargs.quiet && console.log.apply(console, args)
+}
 
 function getTodayTasks(qs = {}) {
   return redmine.issues.query(Object.assign({'status_id': em_andamento}, qs))
@@ -73,13 +116,11 @@ function getCurrent(qs = {}) {
 
 function getYesterdayTimes(qs = {}) {
   return redmine.times.query(Object.assign({
-    'spent_on': `=${yesterday}`
+    'spent_on': `=${YESTERDAY}`
   }, qs)).then(times => times.filter(time => time.comments !== reuniao_diaria));
 }
 
-function submit(issue, {yesterday, today, impediments = 'Sem impedimentos'}) {
-  var notes = `*Ontem*:\n${yesterday}\n\n*Hoje*:\n${today}\n\n*Impedimentos*:\n${impediments}`;
-
+function submit(issue, notes) {
   return Promise.all([
     redmine.issues.update(issue.id, {notes}),
     redmine.times.create({
