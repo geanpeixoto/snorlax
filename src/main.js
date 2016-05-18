@@ -1,7 +1,6 @@
 const redmine = require('./redmine');
 
-
-const {user_id, project_id} = require('../config.json');
+const {user_id} = require('../config.json');
 const impediments = 'Sem impedimentos';
 const nova = 1;
 const em_andamento = 2;
@@ -40,7 +39,7 @@ const desculpas = [
 ];
 
 Promise.all([
-  getCurrent({project_id}),
+  getCurrent(),
   getYesterdayTimes({user_id}),
   getTodayTasks({'assigned_to_id': user_id})
 ])
@@ -67,7 +66,7 @@ Promise.all([
     return confirm().then(() => submit(reuniao, notes));
   })
   .then(response => {
-    log('\n\nSalvo com sucesso!');
+    log('\n*** Salvo com sucesso! ***');
   })
   .catch(error => {
     error && console.error(error);
