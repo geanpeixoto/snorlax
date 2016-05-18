@@ -37,6 +37,9 @@ Promise.all([
       today: today.join('\n')
     });
   })
+  .then(() => {
+    console.log('¯\\_(ツ)_/¯')
+  })
   .catch(error => {
     console.error(error);
   });
@@ -48,7 +51,7 @@ function getTodayTasks(qs = {}) {
         return shuffleArray(andamento).slice(0, 2);
       else
         return redmine.issues.query(Object.assign({'status_id': nova}, qs))
-          .then(nova => shuffleArray(andamento).slice(0, 2));
+          .then(nova => shuffleArray(nova).slice(0, 2));
     });
 }
 
