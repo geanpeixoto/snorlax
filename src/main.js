@@ -1,35 +1,55 @@
-const redmine = require('./redmine');
+'use strict';
 
-const {user_id} = require('../config.json');
-const impediments = 'Sem impedimentos';
-const nova = 1;
-const em_andamento = 2;
-const reuniao_diaria = 'Reunião Diária';
-const REUNIAO_DIARIA_REGEXP = new RegExp(reuniao_diaria, 'i');
-const TODAY = new Date().toISOString().substr(0, 10);
+const defaults = require('../config.json');
 
 const yargs = require('yargs')
-  .usage('$0 [args]')
-  .option('yes', {
-    alias: 'y',
-    describe: 'Não pergunta se deseja confirmar',
-    default: false
-  })
-  .option('quiet', {
-    alias: 'q',
-    describe: 'Não exibe nenhuma mensagem',
-    default: false
-  })
-  .option('append', {
-    alias: 'a',
-    describe: 'Adiciona informações as de hoje'
-  })
-  .option('today', {
-    alias: 't',
-    describe: 'Informa o quer irá fazer no dia'
-  })
-  .help('h')
-  .argv;
+    .usage('$0 [args]')
+    .option('yes', {
+      alias: 'y',
+      describe: 'Não pergunta se deseja confirmar',
+      default: false
+    })
+    .option('host', {
+      describe: 'Endereço do redmine',
+      default: defaults.host
+    })
+    .option('quiet', {
+      alias: 'q',
+      describe: 'Não exibe nenhuma mensagem',
+      default: false
+    })
+    .option('user', {
+      alias: 'u',
+      describe: 'Código de usuário do redmine',
+      default: defaults.user
+    })
+    .option('append', {
+      alias: 'a',
+      describe: 'Adiciona informações as de hoje'
+    })
+    .option('today', {
+      alias: 't',
+      describe: 'Informa o quer irá fazer no dia'
+    })
+    .option('api-key', {
+      alias: 'k',
+      describe: 'Código de autenticação do redmine',
+      default: defaults['api-key']
+    })
+    .help('h')
+    .argv;
+
+const IMPEDIMENTS = 'Sem impedimentos';
+const NOVA = 1;
+const EM_ANDAMENTO = 2;
+const MAX_BACKWARD = 3;
+const REUNIAO_DIARIA = 'Reunião Diária';
+const REUNIAO_DIARIA_REGEXP = new RegExp(REUNIAO_DIARIA, 'gi');
+const TODAY = new Date().toISOString().substr(0, 10);
+
+const redmine = require('./redmine')
+  .host(yargs.host)
+  .apiKey(yargs['api-key']);
 
 const desculpas = [
   'Esperando atribuição de tarefas',
@@ -40,8 +60,8 @@ const desculpas = [
 
 Promise.all([
   getCurrent(),
-  getYesterdayTimes({user_id}),
-  getTodayTasks({'assigned_to_id': user_id})
+  getYesterdayTimes({user_id: yargs.user}),
+  getTodayTasks({'assigned_to_id': yargs.user})
 ])
   .then(([reuniao, yesterdayTimes, todayIssues]) => {
     var today, yesterday = yesterdayTimes.map(time => `#${time.issue.id} - ${time.comments}`);
@@ -59,21 +79,18 @@ Promise.all([
         today.push(yargs.append);
     }
 
-    var notes = `*Ontem*:\n${yesterday.join('\n')}\n\n*Hoje*:\n${today.join('\n')}\n\n*Impedimentos*:\n${impediments}`;
+    var notes = `*Ontem*:\n${yesterday.join('\n')}\n\n*Hoje*:\n${today.join('\n')}\n\n*Impedimentos*:\n${IMPEDIMENTS}`;
 
     log(`${notes}`);
 
     return confirm().then(() => submit(reuniao, notes));
   })
-  .then(response => {
-    log('\n\n--\n\n*** Salvo com sucesso! ***');
-  })
-  .catch(error => {
-    error && console.error(error);
-  });
+  .then(response => log('\n\n--\n\n*** Salvo com sucesso! ***'))
+  .catch(error => error && console.error(error));
 
 function log(...args) {
-  !yargs.quiet && console.log.apply(console, args)
+  if ( !yargs.quiet )
+    console.log.apply(console, args);
 }
 
 function confirm() {
@@ -97,27 +114,27 @@ function confirm() {
 }
 
 function getTodayTasks(qs = {}) {
-  return redmine.issues.query(Object.assign({'status_id': em_andamento}, qs))
+  return redmine.queryIssues(Object.assign({'status_id': EM_ANDAMENTO}, qs))
     .then(andamento => {
       if ( andamento.length > 0 )
         return shuffleArray(andamento).slice(0, 2);
       else
-        return redmine.issues.query(Object.assign({'status_id': nova}, qs))
+        return redmine.queryIssues(Object.assign({'status_id': NOVA}, qs))
           .then(nova => shuffleArray(nova).slice(0, 2));
     });
 }
 
 function getCurrent(qs = {}) {
-  return redmine.issues.query(Object.assign({
+  return redmine.queryIssues(Object.assign({
     'tracker_id': 6, // Gerênciamento
-    'status_id': em_andamento,
+    'status_id': EM_ANDAMENTO,
     'created_on': `=${TODAY}`,
-    'subject': reuniao_diaria,
+    'subject': REUNIAO_DIARIA,
   }, qs)).then(issues => {
     var length = issues.length;
 
     if (issues.length !== 1)
-      throw `Existem ${issues.length} reuniões abertas`
+      throw `Existem ${issues.length} reuniões abertas`;
 
     return issues[0];
   });
@@ -125,26 +142,29 @@ function getCurrent(qs = {}) {
 
 function getYesterdayTimes(qs = {}) {
 
-  function recursion(today) {
-    let yesterday = new Date( today.getTime() - 24*1000*60*60 );
-    return redmine.times.query(Object.assign({'spent_on': `=${yesterday.toISOString().substr(0, 10)}`}, qs))
+  function recursion(return_in_days = 1) {
+    if ( return_in_days > MAX_BACKWARD )
+      throw new Error(`Não foi encontrado registro de horários nos ultimos ${MAX_BACKWARD} dias`);
+
+    let day = new Date( Date.now() - return_in_days*24*1000*60*60 );
+    return redmine.queryTimeEntries(Object.assign({'spent_on': `=${day.toISOString().substr(0, 10)}`}, qs))
       .then(times => times.filter(time => !REUNIAO_DIARIA_REGEXP.test(time.comments)))
-      .then(times => !times.length ? recursion(yesterday) : times );
+      .then(times => !times.length ? recursion(return_in_days+1) : times );
   }
 
-  return recursion(new Date( Date.now() ));
+  return recursion();
 }
 
 function submit(issue, notes) {
   return Promise.all([
-    redmine.issues.update(issue.id, {notes}),
-    redmine.times.create({
-      'comments': reuniao_diaria,
+    redmine.updateIssue(issue.id, {notes}),
+    redmine.createTimeEntry({
+      'comments': REUNIAO_DIARIA,
       'hours': 0.25, // 0:15
       'activity_id': 12,
       'issue_id': issue.id,
       'spent_on': TODAY,
-      'user_id': user_id
+      'user_id': yargs.user
     })
   ]);
 }

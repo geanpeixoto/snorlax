@@ -1,5 +1,5 @@
 {
   "host": "http://git.consulfarmasaude.com.br:3000",
-  "api_key": "e444a670be9da2a5fa8e30f641d647706b05de17",
-  "user_id": 39
+  "api-key": "e444a670be9da2a5fa8e30f641d647706b05de17",
+  "user": 39
 }
