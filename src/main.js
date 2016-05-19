@@ -5,8 +5,8 @@ const impediments = 'Sem impedimentos';
 const nova = 1;
 const em_andamento = 2;
 const reuniao_diaria = 'Reunião Diária';
+const REUNIAO_DIARIA_REGEXP = new RegExp(reuniao_diaria, 'i');
 const TODAY = new Date().toISOString().substr(0, 10);
-const YESTERDAY = new Date( Date.now() - 24*1000*60*60 ).toISOString().substr(0, 10);
 
 const yargs = require('yargs')
   .usage('$0 [args]')
@@ -66,7 +66,7 @@ Promise.all([
     return confirm().then(() => submit(reuniao, notes));
   })
   .then(response => {
-    log('\n*** Salvo com sucesso! ***');
+    log('\n\n--\n\n*** Salvo com sucesso! ***');
   })
   .catch(error => {
     error && console.error(error);
@@ -86,7 +86,7 @@ function confirm() {
       output: process.stdout
     });
 
-    input.question('Deseja enviar (Y/n) ? ', function(response) {
+    input.question('\n\n--\n\nDeseja enviar (Y/n) ? ', function(response) {
       if ( ['', 'Y', 'y', 'yes', 'Yes'].indexOf(response) >= 0 )
         resolve();
       else
@@ -124,9 +124,15 @@ function getCurrent(qs = {}) {
 }
 
 function getYesterdayTimes(qs = {}) {
-  return redmine.times.query(Object.assign({
-    'spent_on': `=${YESTERDAY}`
-  }, qs)).then(times => times.filter(time => time.comments !== reuniao_diaria));
+
+  function recursion(today) {
+    let yesterday = new Date( today.getTime() - 24*1000*60*60 );
+    return redmine.times.query(Object.assign({'spent_on': `=${yesterday.toISOString().substr(0, 10)}`}, qs))
+      .then(times => times.filter(time => !REUNIAO_DIARIA_REGEXP.test(time.comments)))
+      .then(times => !times.length ? recursion(yesterday) : times );
+  }
+
+  return recursion(new Date( Date.now() ));
 }
 
 function submit(issue, notes) {
