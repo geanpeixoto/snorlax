@@ -1,6 +1,7 @@
 'use strict';
 
 const defaults = require('../config.json');
+const colors = require('colors');
 
 const yargs = require('yargs')
     .usage('$0 [args]')
@@ -67,7 +68,7 @@ Promise.all([
     var today, yesterday = yesterdayTimes.map(time => `#${time.issue.id} - ${time.comments}`);
 
     if ( !yesterday.length )
-      throw new Error('Não existem horarios cadastrados para ontem');
+      throw new Error('não existem horarios cadastrados para ontem');
 
     if ( yargs.today ) {
       today = [yargs.today];
@@ -86,7 +87,7 @@ Promise.all([
     return confirm().then(() => submit(reuniao, notes));
   })
   .then(response => log('\n\n--\n\n*** Salvo com sucesso! ***'))
-  .catch(error => error && console.error(error));
+  .catch(error => error && console.error(colors.red(`\n\nErro: ${error}\n`)));
 
 function log(...args) {
   if ( !yargs.quiet )
@@ -134,7 +135,7 @@ function getCurrent(qs = {}) {
     var length = issues.length;
 
     if (issues.length !== 1)
-      throw `Existem ${issues.length} reuniões abertas`;
+      throw `existem ${issues.length} reuniões abertas`;
 
     return issues[0];
   });
