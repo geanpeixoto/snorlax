@@ -130,7 +130,7 @@ function getCurrent(qs = {}) {
     'tracker_id': 6, // Gerênciamento
     'status_id': EM_ANDAMENTO,
     'created_on': `=${TODAY}`,
-    'subject': REUNIAO_DIARIA,
+    'subject': REUNIAO_DIARIA_REGEXP,
   }, qs)).then(issues => {
     var length = issues.length;
 
