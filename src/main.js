@@ -45,6 +45,7 @@ const NOVA = 1;
 const EM_ANDAMENTO = 2;
 const MAX_BACKWARD = 7;
 const REUNIAO_DIARIA = 'Reunião Diária';
+const REUNIAO_COMMENT = 'Participação na Reunião da Manhã';
 const REUNIAO_DIARIA_REGEXP = new RegExp(REUNIAO_DIARIA, 'gi');
 const TODAY = new Date().toISOString().substr(0, 10);
 
@@ -160,7 +161,7 @@ function submit(issue, notes) {
   return Promise.all([
     /*redmine.updateIssue(issue.id, {notes}),*/
     redmine.createTimeEntry({
-      'comments': REUNIAO_DIARIA,
+      'comments': REUNIAO_COMMENT,
       'hours': 0.25, // 0:15
       'activity_id': 12,
       'issue_id': issue.id,
