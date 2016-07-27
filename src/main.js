@@ -45,7 +45,7 @@ const NOVA = 1;
 const EM_ANDAMENTO = 2;
 const MAX_BACKWARD = 7;
 const REUNIAO_DIARIA = 'Reunião Diária';
-const REUNIAO_COMMENT = 'Participação em Reunião da Manhã';
+const REUNIAO_COMMENT = 'Participação na Reunião da Manhã';
 const REUNIAO_DIARIA_REGEXP = new RegExp(REUNIAO_DIARIA, 'gi');
 const TODAY = new Date().toISOString().substr(0, 10);
 
