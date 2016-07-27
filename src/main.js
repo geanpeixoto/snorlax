@@ -158,7 +158,7 @@ function getYesterdayTimes(qs = {}) {
 
 function submit(issue, notes) {
   return Promise.all([
-    redmine.updateIssue(issue.id, {notes}),
+    /*redmine.updateIssue(issue.id, {notes}),*/
     redmine.createTimeEntry({
       'comments': REUNIAO_DIARIA,
       'hours': 0.25, // 0:15
