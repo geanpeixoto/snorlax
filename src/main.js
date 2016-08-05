@@ -36,6 +36,9 @@ const yargs = require('yargs')
       alias: 'k',
       describe: 'Código de autenticação do redmine',
       default: defaults['api-key']
+    }).option('issue_id', {
+      alias: 'c',
+      describe: 'Número do chamado no Redmine',
     })
     .help('h')
     .argv;
@@ -132,11 +135,11 @@ function getCurrent(qs = {}) {
     'status_id': EM_ANDAMENTO,
     'created_on': `=${TODAY}`,
     'subject': REUNIAO_DIARIA_REGEXP,
+    'author': { id: 51 }
   }, qs)).then(issues => {
-    var length = issues.length;
-
-    if (issues.length !== 1)
-      throw `existem ${issues.length} reuniões abertas`;
+    var length = 2;//issues.length;
+    if (length !== 1 && !yargs.issue_id)
+      throw `existem ${length} reuniões abertas`;
 
     return issues[0];
   });
@@ -164,7 +167,7 @@ function submit(issue, notes) {
       'comments': REUNIAO_COMMENT,
       'hours': 0.25, // 0:15
       'activity_id': 12,
-      'issue_id': issue.id,
+      'issue_id': (yargs.issue_id) ? yargs.issue_id : issue.id  ,
       'spent_on': TODAY,
       'user_id': yargs.user
     })
