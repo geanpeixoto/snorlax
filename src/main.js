@@ -135,7 +135,6 @@ function getCurrent(qs = {}) {
     'status_id': EM_ANDAMENTO,
     'created_on': `=${TODAY}`,
     'subject': REUNIAO_DIARIA_REGEXP,
-    'author': { id: 51 }
   }, qs)).then(issues => {
     var length = issues.length;
     if (length !== 1 && !yargs.issue_id)
