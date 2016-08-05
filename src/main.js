@@ -137,7 +137,7 @@ function getCurrent(qs = {}) {
     'subject': REUNIAO_DIARIA_REGEXP,
     'author': { id: 51 }
   }, qs)).then(issues => {
-    var length = 2;//issues.length;
+    var length = issues.length;
     if (length !== 1 && !yargs.issue_id)
       throw `existem ${length} reuniões abertas`;
 
